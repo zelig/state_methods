@@ -1,20 +1,20 @@
 # -*- encoding: utf-8 -*-
-$:.push File.expand_path("../lib", __FILE__)
-require "state_methods/version"
+lib = File.expand_path('../lib', __FILE__)
+$LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
+require 'state_methods/version'
+DESC = %q{declarative state aware method definitions}
 
-Gem::Specification.new do |s|
-  s.name        = "state_methods"
-  s.version     = StateMethods::VERSION
-  s.authors     = ["zelig"]
-  s.email       = ["viktor.tron@gmail.com"]
-  s.homepage    = ""
-  s.summary     = %q{TODO: Write a gem summary}
-  s.description = %q{TODO: Write a gem description}
+Gem::Specification.new do |gem|
+  gem.name          = "state_methods"
+  gem.version       = StateMethods::VERSION
+  gem.authors       = ["zelig"]
+  gem.email         = ["viktor.tron@gmail.com"]
+  gem.description   = DESC
+  gem.summary       = DESC
+  gem.homepage      = "https://github.com/zelig/state_methods.git"
 
-  s.rubyforge_project = "state_methods"
-
-  s.files         = `git ls-files`.split("\n")
-  s.test_files    = `git ls-files -- {test,spec,features}/*`.split("\n")
-  s.executables   = `git ls-files -- bin/*`.split("\n").map{ |f| File.basename(f) }
-  s.require_paths = ["lib"]
+  gem.files         = `git ls-files`.split($/)
+  gem.executables   = gem.files.grep(%r{^bin/}).map{ |f| File.basename(f) }
+  gem.test_files    = gem.files.grep(%r{^(test|spec|features)/})
+  gem.require_paths = ["lib"]
 end
