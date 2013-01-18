@@ -6,3 +6,4 @@ pkg/*
 .powrc
 .rspec
 .zeus*
+tmp

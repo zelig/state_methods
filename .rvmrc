@@ -1,0 +1,2 @@
+[ -e .env ] && . .env
+rvm use 1.9.3
