@@ -1,19 +1,26 @@
 module StateMethods
   class Partition
-
-    def index
-      @index
-    end
-
     def ==(p)
       index == p.index
     end
 
-    def initialize(partition = {}, extend = nil)
+    def initialize(partition = {}, ancestor = nil)
       partition = {} if partition == [] || partition == :default
       raise ArgumentError, "partition must be a Hash" unless partition.is_a?(Hash)
       partition = { :all => partition } unless partition[:all] || partition['all']
-      @index = process(partition, extend ? extend.index : {}, extend ? nil : [])
+      @index = process(partition, ancestor ? ancestor.index.dup : {}, ancestor ? nil : [])
+    end
+
+    def ancestors(s)
+      s = s.to_sym
+      # unsafe to prepend s but it catches undeclared state
+      index[s] || (index[:*] && [s, *(index[:*])]) || [s, :all]
+    end
+
+    protected
+
+    def index
+      @index
     end
 
     def process(partition, index, prefix)

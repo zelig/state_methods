@@ -4,7 +4,7 @@ require "state_methods/method_utils"
 
 module StateMethods
 
-  extend ::StateMethods::MethodUtils
+  # extend ::StateMethods::MethodUtils
 
   def self.included(base)
     base.class_eval do
