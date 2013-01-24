@@ -1,5 +1,5 @@
 require "state_methods/version"
-require "state_methods/base"
+require "state_methods/implementations"
 require "state_methods/method_utils"
 
 module StateMethods
@@ -8,7 +8,7 @@ module StateMethods
 
   def self.included(base)
     base.class_eval do
-      include ::StateMethods::Base
+      include ::StateMethods::Implementations
     end
   end
 

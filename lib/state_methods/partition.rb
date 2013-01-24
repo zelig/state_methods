@@ -1,4 +1,6 @@
 module StateMethods
+  class DuplicateStateError < ArgumentError; end
+
   class Partition
     def ==(p)
       index == p.index
@@ -6,8 +8,7 @@ module StateMethods
 
     def initialize(partition = {}, ancestor = nil)
       partition = {} if partition == [] || partition == :default
-      raise ArgumentError, "partition must be a Hash" unless partition.is_a?(Hash)
-      partition = { :all => partition } unless partition[:all] || partition['all']
+      partition = { :all => partition } unless partition.is_a?(Hash) && (ancestor || partition[:all] || partition['all'])
       @index = process(partition, ancestor ? ancestor.index.dup : {}, ancestor ? nil : [])
     end
 
@@ -17,11 +18,11 @@ module StateMethods
       index[s] || (index[:*] && [s, *(index[:*])]) || [s, :all]
     end
 
-    protected
-
     def index
       @index
     end
+
+    protected
 
     def process(partition, index, prefix)
       partition.each do |k, v|
@@ -31,13 +32,12 @@ module StateMethods
         if prefix
           new_prefix = [k, *prefix]
           if orig_prefix
-            raise ArgumentError, "duplicate state or partition '#{k}'" unless new_prefix == orig_prefix
-          else
-            index[k] = new_prefix
+            raise DuplicateStateError, k unless new_prefix == orig_prefix
           end
         else
           new_prefix = orig_prefix || [k, :all]
         end
+        index[k] = new_prefix
         case v
         when Hash then process(v, index, new_prefix) unless v.empty?
         when Symbol, String then process({ v => {} }, index, new_prefix)
@@ -46,6 +46,7 @@ module StateMethods
           raise ArgumentError, "invalid partition specification for '#{k}' => '#{v.inspect}'"
         end
       end
+      # puts index
       index
     end
 
