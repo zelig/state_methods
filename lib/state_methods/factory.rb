@@ -31,9 +31,14 @@ module StateMethods
       end
     end
 
-    def declare(method_name)
+    def declare(method_name, method_options)
       this = self
       ::StateMethods::MethodUtils.define_metaclass_method(@klass, method_name) do |*states, &block|
+        if correct_arity = method_options[:arity]
+          arity = block.arity
+          raise ArgumentError, "block has incorrect arity: #{arity} for #{correct_arity}" unless
+          arity == correct_arity
+        end
         factory = this.factory_for(self)
         states.each do |state|
           raise UndeclaredState unless factory.declared?(state)
@@ -44,6 +49,7 @@ module StateMethods
 
       state_accessor = @state_accessor
       lock_state = @lock_state
+
       ::StateMethods::MethodUtils.define_method(@klass, method_name) do |*args|
         state = send(state_accessor) || :*
         factory = this.factory_for(self.class)
@@ -54,6 +60,16 @@ module StateMethods
               base.send(func, *args)
             end
           end
+          base.send(func, *args) if base.respond_to?(func)
+        rescue Undefined
+          return nil
+        end
+      end
+
+      ::StateMethods::MethodUtils.define_method(@klass, :"#{method_name}_for") do |state, *args|
+        factory = this.factory_for(self.class)
+        begin
+          base, func = factory.get(self, method_name, state)
           base.send(func, *args) if base.respond_to?(func)
         rescue Undefined
           return nil

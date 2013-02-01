@@ -395,8 +395,27 @@ describe "state methods" do
           model.test.should == :a
         end
 
+        it "state method _for variant bypasses locked state" do
+          model_class.test(:a) { :a }
+          model_class.test(:b) { :b }
+          model.state!(:b)
+          model.state!(:a).test.should == :a
+          model.state!(:b).state.should == :b
+          model.test_for(:a).should == :a
+          model.test_for(:b).should == :b
+          model.test_for(:c).should == nil
+        end
+
+        it "state method _for variant does not memoize" do
+          model_class.test(:a) { :a }
+          model_class.test(:b) { :b }
+          model.state!(:a).test_for(:a).should == :a
+          model.test_for(:b).should == :b
+          model.test.should == :a
+        end
+
       end
-      context "with option :lock_state => true" do
+      context "with option :lock_state => false" do
 
         before(:each) do
           model_class.state_method :test, :state, :lock_state => false, :partition => [:a, :b]
@@ -410,6 +429,20 @@ describe "state methods" do
           model.state!(:a).test.should == :a
           model.state!(:b).state.should == :b
           model.test.should == :b
+        end
+
+      end
+
+      context "with option :arity => x" do
+
+        it "arity 0 with block {} ok" do
+          model_class.state_method :test, :state, :arity => 0, :partition => [:a, :b]
+          model_class.test(:a) { }
+        end
+
+        it "arity 0 with block { |*| } ok" do
+          model_class.state_method :test, :state, :arity => 0, :partition => [:a, :b]
+          lambda { model_class.test(:a) { |*| } }.should raise_error(ArgumentError, "block has incorrect arity: -1 for 0")
         end
 
       end

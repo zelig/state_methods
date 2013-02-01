@@ -34,8 +34,10 @@ module StateMethods
 
       def state_method(method_name, state_accessor, options = {})
         raise ArgumentError, "'#{method_name}' already defined" if respond_to?(method_name)
+        method_options = {}
+        method_options[:arity] = options.delete(:arity)
         factory = _state_method_factory_for(state_accessor, options)
-        factory.declare(method_name)
+        factory.declare(method_name, method_options)
       end
 
       def _state_method_factory_for(state_accessor, options = {})
