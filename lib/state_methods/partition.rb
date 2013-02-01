@@ -9,7 +9,11 @@ module StateMethods
     def initialize(partition = {}, ancestor = nil)
       partition = {} if partition == [] || partition == :default
       partition = { :all => partition } unless partition.is_a?(Hash) && (ancestor || partition[:all] || partition['all'])
-      @index = process(partition, ancestor ? ancestor.index.dup : {}, ancestor ? nil : [])
+      @index, @leaves = process(partition, ancestor ? ancestor.index.dup : {}, ancestor ? nil : [], [])
+    end
+
+    def declared?(s)
+      index[s.to_sym]
     end
 
     def ancestors(s)
@@ -22,9 +26,13 @@ module StateMethods
       @index
     end
 
+    def leaves
+      @leaves
+    end
+
     protected
 
-    def process(partition, index, prefix)
+    def process(partition, index, prefix, leaves)
       partition.each do |k, v|
         k = k.to_sym
         orig_prefix = index[k]
@@ -39,15 +47,16 @@ module StateMethods
         end
         index[k] = new_prefix
         case v
-        when Hash then process(v, index, new_prefix) unless v.empty?
-        when Symbol, String then process({ v => {} }, index, new_prefix)
-        when Array then v.each { |e| process({ e => {} }, index, new_prefix) }
+        when {} then leaves << k
+        when Hash then process(v, index, new_prefix, leaves)
+        when Symbol, String then process({ v => {} }, index, new_prefix, leaves)
+        when Array then v.each { |e| process({ e => {} }, index, new_prefix, leaves) }
         else
           raise ArgumentError, "invalid partition specification for '#{k}' => '#{v.inspect}'"
         end
       end
       # puts index
-      index
+      [index, leaves]
     end
 
   end

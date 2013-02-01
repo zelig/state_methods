@@ -26,6 +26,10 @@ describe "state methods" do
     ::StateMethods::Partition.new(*spec)
   end
 
+  def state_method_options!(*spec)
+    { :partition => state_partition!(*spec) }
+  end
+
   def state_partition
     @state_partition
   end
@@ -115,51 +119,51 @@ describe "state methods" do
     end
   end
 
-  describe "state partition declarations are allowed" do
+  describe "state option declarations are allowed" do
 
     it "with state and no option they retrieve correct partition" do
-      model_class._state_partition_for(:state).should be_nil
-      model_class._state_partition_for(:state, :partition => { :a => :b })
-      model_class._state_partition_for(:state).should == state_partition!(:a => :b)
+      model_class.state_method_options_for(:state).should be_nil
+      model_class.state_method_options_for(:state, :partition => { :a => :b })
+      model_class.state_method_options_for(:state).should == state_method_options!(:a => :b)
     end
 
     it "with state, partition option and retrieve correct partition" do
-      model_class._state_partition_for(:state, :partition => { :a => :b }).should == state_partition!(:a => :b)
+      model_class.state_method_options_for(:state, :partition => { :a => :b }).should == state_method_options!(:a => :b)
     end
 
     it "with partition option only once for a state accessor" do
-      model_class._state_partition_for :state, :partition => { :a => :b }
-      lambda { model_class._state_partition_for :state, :partition => { :a => :b } }.should raise_error(ArgumentError, "partition for 'state' already defined")
+      model_class.state_method_options_for :state, :partition => { :a => :b }
+      lambda { model_class.state_method_options_for :state, :partition => { :a => :b } }.should raise_error(ArgumentError, "partition for 'state' already defined")
     end
 
     it "with extend option only if they extend earlier declarations" do
-      model_class._state_partition_for :state, :partition => { :a => :b }
-      lambda { model_class._state_partition_for :state, :extend => { :c => :a } }.should raise_error(::StateMethods::CannotOverrideError, "a")
+      model_class.state_method_options_for :state, :partition => { :a => :b }
+      lambda { model_class.state_method_options_for :state, :extend => { :c => :a } }.should raise_error(::StateMethods::CannotOverrideError, "a")
     end
 
     it "with extend option only if partition is already defined for the state accessor" do
-      lambda { model_class._state_partition_for :state, :extend => { :a => :b } }.should raise_error(ArgumentError, "partition for 'state' not defined")
+      lambda { model_class.state_method_options_for :state, :extend => { :a => :b } }.should raise_error(ArgumentError, "partition for 'state' not defined")
     end
 
     it "with extend option after state accessor is defined" do
-      model_class._state_partition_for :state, :partition => { :a => :b }
-      model_class._state_partition_for(:state, :extend => { :a => :c }).should == state_partition!(:a => [:b, :c])
+      model_class.state_method_options_for :state, :partition => { :a => :b }
+      model_class.state_method_options_for(:state, :extend => { :a => :c }).should == state_method_options!(:a => [:b, :c])
     end
 
     it "and are inherited" do
-      model_class._state_partition_for :state, :partition => { :a => :b }
-      model_subclass!._state_partition_for(:state).should == state_partition!(:a => :b)
+      model_class.state_method_options_for :state, :partition => { :a => :b }
+      model_subclass!.state_method_options_for(:state).should == state_method_options!(:a => :b)
     end
 
     it "and are extensible in subclass, not overwritten in superclass" do
-      model_class._state_partition_for :state, :partition => { :a => :b }
-      model_subclass!._state_partition_for :state, :extend => { :a => :c }
-      model_subclass._state_partition_for(:state).should == state_partition!(:a => [:b, :c])
-      model_class._state_partition_for(:state).should == state_partition!(:a => :b)
+      model_class.state_method_options_for :state, :partition => { :a => :b }
+      model_subclass!.state_method_options_for :state, :extend => { :a => :c }
+      model_subclass.state_method_options_for(:state).should == state_method_options!(:a => [:b, :c])
+      model_class.state_method_options_for(:state).should == state_method_options!(:a => :b)
     end
 
     it "and define state_is_a? instance method" do
-      model_class._state_partition_for :state, :partition => { :a => [:b, :c] }
+      model_class.state_method_options_for :state, :partition => { :a => [:b, :c] }
       model!.state!(:b)
       model.state_is_a?(:b).should be_true
       model.state_is_a?(:a).should be_true
@@ -175,7 +179,7 @@ describe "state methods" do
     describe "state method declarations" do
 
       # before(:each) do
-      #   model_class._state_partition_for :state, :partition => :default
+      #   model_class.state_method_options_for :state, :partition => :default
       # end
 
       it "take state method, partition option as arguments" do
@@ -343,7 +347,7 @@ describe "state methods" do
 
         before(:each) do
           model_class.state_method :test, :state, :partition => { :ab => [:a, :b] }
-          model_subclass!._state_partition_for :state, :extend => { :cd => [:c, :d], :ab => { :b => [:b0, :b1] } }
+          model_subclass!.state_method_options_for :state, :extend => { :cd => [:c, :d], :ab => { :b => [:b0, :b1] } }
           model!.state!(:none)
         end
 
@@ -361,6 +365,10 @@ describe "state methods" do
           model.test.should == :c
         end
 
+        it "setting a method on an undeclared state raises StateMethods::UndeclaredState" do
+          lambda { model_class.test(:c) { :c } }.should raise_error(StateMethods::UndeclaredState)
+        end
+
         it "specification block arguments are passed correctly" do
           model_class.test(:a) { |first, second, *rest| "state: #{state}, first: #{first}, second: #{second}, rest: #{rest.join(', ')}" }
           model.state!(:a).state.should == :a
@@ -370,6 +378,42 @@ describe "state methods" do
         include_examples 'singular specification'
 
       end
+
+      context "with option :lock_state => true" do
+
+        before(:each) do
+          model_class.state_method :test, :state, :lock_state => true, :partition => [:a, :b]
+          model!.state!(:none)
+        end
+
+        it "state method call locks the instance to the current state (state-specific method is memoized)" do
+          model_class.test(:a) { :a }
+          model_class.test(:b) { :b }
+          model.state!(:b)
+          model.state!(:a).test.should == :a
+          model.state!(:b).state.should == :b
+          model.test.should == :a
+        end
+
+      end
+      context "with option :lock_state => true" do
+
+        before(:each) do
+          model_class.state_method :test, :state, :lock_state => false, :partition => [:a, :b]
+          model!.state!(:none)
+        end
+
+        it "state method call does not lock the instance to the current state (state-specific method is not memoized)" do
+          model_class.test(:a) { :a }
+          model_class.test(:b) { :b }
+          model.state!(:b)
+          model.state!(:a).test.should == :a
+          model.state!(:b).state.should == :b
+          model.test.should == :b
+        end
+
+      end
+
     end
   end
 

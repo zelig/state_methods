@@ -3,14 +3,14 @@ module StateMethods
     class Functional < StateMethods::Factory
 
       def set(klass, method_name, state, &block)
-        ::StateMethods::MethodUtils.define_instance_method(klass, [method_name, state], &block)
+        ::StateMethods::MethodUtils.define_method(klass, [method_name, state], &block)
       end
 
-      def get(instance, method_name, state, *args)
-        partition = instance.class._state_partition_for(@state_accessor)
+      def get(instance, method_name, state)
+        partition = instance.class.state_method_options_for(@state_accessor)[:partition]
         keys = partition.ancestors(state)
         if m = ::StateMethods::MethodUtils.find_defined(instance, method_name, *keys)
-          instance.send(m, *args)
+          [instance, m]
         else
           raise Undefined
         end

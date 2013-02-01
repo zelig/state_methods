@@ -20,8 +20,8 @@ module StateMethods
 
     def self.included(base)
       base.class_eval do
-        class_attribute :_state_partitions
-        self._state_partitions = {}
+        class_attribute :state_method_options
+        self.state_method_options = {}
         include InstanceMethods
       end
       base.extend ClassMethods
@@ -41,48 +41,56 @@ module StateMethods
       def _state_method_factory_for(state_accessor, options = {})
         @_state_method_factories ||= {}
         factory = @_state_method_factories[state_accessor]
-        unless factory
-          partition = _state_partition_for(state_accessor, options) or raise(PartitionNotFound)
+        if factory
+          raise ArgumentError, "state_methods for '#{state_accessor}' already set up" unless options.empty?
+        else
+          factory_options = state_method_options_for(state_accessor, options) or raise(PartitionNotFound)
           factory_class = begin
-            implementation = options[:implementation] || ::StateMethods.implementation
+            implementation = factory_options[:implementation] || ::StateMethods.implementation
             "::StateMethods::Implementations::#{implementation}".constantize
           rescue NameError
             raise ArgumentError, "implementation '#{implementation}' not found"
           end
-          factory = @_state_method_factories[state_accessor] ||= factory_class.new(self, state_accessor, partition)
+          factory = @_state_method_factories[state_accessor] ||= factory_class.new(self, state_accessor, factory_options)
         end
         factory
       end
 
-      def _state_partition_for(state_accessor, options = {})
-        orig = _state_partitions[state_accessor]
-        extension = options[:extend]
+      def state_method_options_for(state_accessor, options = {})
+        orig_options = state_method_options[state_accessor]
+        return orig_options if options.empty?
+        extension = options.delete(:extend)
         spec = options[:partition]
-        if orig
-          raise ArgumentError, "partition for '#{state_accessor}' already defined" if spec
+        if orig_options
+          raise ArgumentError, "partition for '#{state_accessor}' already defined" unless options.empty?
         else
           raise ArgumentError, "partition for '#{state_accessor}' not defined" if extension
         end
         spec ||= extension
-        return orig unless spec
-        raise ArgumentError, "partition for '#{state_accessor}' should be set before state_method calls within a class" if
+        raise ArgumentError, "state method options for '#{state_accessor}' should be set before state_method calls within a class" if
         @_state_method_factories && @_state_method_factories[state_accessor]
-        begin
-          new_partition = ::StateMethods::Partition.new(spec, orig)
-          ::StateMethods::MethodUtils.define_instance_method(self, :"#{state_accessor}_is_a?") do |s|
-            current_state = send(state_accessor)
-            current_state == s or
-            new_partition.ancestors(current_state||:*).include?(s)
-          end
-          self._state_partitions = _state_partitions.merge(state_accessor => new_partition)
-          new_partition
-        rescue ::StateMethods::DuplicateStateError => exc
-          if orig
-            raise CannotOverrideError, exc.to_s
-          else
-            raise exc
+        partition = (orig_options[:partition] if orig_options)
+        if spec
+          begin
+            partition = ::StateMethods::Partition.new(spec, partition)
+          rescue ::StateMethods::DuplicateStateError => exc
+            if orig_options
+              raise CannotOverrideError, exc.to_s
+            else
+              raise exc
+            end
           end
         end
+        unless orig_options
+          define_method(:"#{state_accessor}_is_a?") do |s|
+            current_state = send(state_accessor)
+            current_state == s or
+            partition.ancestors(current_state||:*).include?(s)
+          end
+        end
+        new_options = options.merge(:partition => partition)
+        self.state_method_options = state_method_options.merge(state_accessor => new_options)
+        new_options
       end
     end
 

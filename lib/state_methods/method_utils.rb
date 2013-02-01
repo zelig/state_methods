@@ -13,12 +13,12 @@ module StateMethods
       end
     end
 
-    def define_class_method(klass, name, val=nil, &block)
+    def define_metaclass_method(klass, name, val=nil, &block)
       name = method_name(*name) if name.is_a?(Array)
       (class << klass; self end).send(:define_method, name, &block || -> { val } )
     end
 
-    def define_instance_method(klass, name, val=nil, &block)
+    def define_method(klass, name, val=nil, &block)
       name = method_name(*name) if name.is_a?(Array)
       klass.send(:define_method, name, &block)
     end

@@ -57,30 +57,22 @@ module StateMethods
             raise ArgumentError, "method '#{method_name}' won't work"
           end
         end
-        set(@klass, method_name, :all) { raise Undefined }
-      end
-
-      def factory_for(klass)
-        if klass == @klass
-          self
-        else
-          klass._state_method_factory_for(*@keys)
-        end
+        # set(@klass, method_name, :all) { raise Undefined }
       end
 
       def set(klass, method_name, state, &block)
         # klass.should == @klass
-        klass = begin
-          class_for(state)
-        rescue NameError
-          raise UndeclaredState
-        end
-        ::StateMethods::MethodUtils.define_instance_method(klass, method_name) do |*args|
+        # klass = begin
+        #   class_for(state)
+        # rescue NameError
+        #   raise UndeclaredState
+        # end
+        class_for(state).send(:define_method, method_name) do |*args|
           @base.instance_exec(*args, &block)
         end
       end
 
-      def get(instance, method_name, state, *args)
+      def get(instance, method_name, state)
         # instance.class.should == @klass
         klass = nil
         [state, :*, :all].find do |s|
@@ -90,12 +82,14 @@ module StateMethods
         end
         if klass
           base = klass.new(instance)
+          [base, method_name]
           # if base.respond_to?(method_name)
-          base.send(method_name, *args)
-          # else
-          #   raise Undefined
-          # end
+          # base.method(method_name)
+          #   # base.send(method_name, *args)
+        else
+          raise Undefined
         end
+        # end
       end
 
       def state_superclass_for(state)
@@ -128,11 +122,12 @@ module StateMethods
           elsif superstate
             make!(const, @proxy) do
               define_method :method_missing do |method_name, *args, &block|
-                klass = base_proxy_for(superstate)
-                klass.send(method_name, *args, &block)
+                proxy = base_proxy_for(superstate)
+                proxy.send(method_name, *args, &block)
               end
-              define_method :respond_to_missing? do |name, include_private = false|
-                name == method_name or super
+              define_method :respond_to? do |method_name, include_private = false|
+                super(method_name) or
+                base_proxy_for(superstate).respond_to?(method_name)
               end
             end
           else
